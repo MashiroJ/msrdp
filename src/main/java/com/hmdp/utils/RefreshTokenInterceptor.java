@@ -28,7 +28,7 @@ public class RefreshTokenInterceptor implements HandlerInterceptor {
                              Object handler) throws Exception {
         //1. 获取请求头中的token令牌
         String token = request.getHeader("authorization");
-        log.info("请求路径：{}，token:{}", request.getRequestURL(), token);
+//        log.info("请求路径：{}，token:{}", request.getRequestURL(), token);
         if (StrUtil.isBlank(token)) {
             //2.根据token从Redis查询用户数据，不存在则放行到登录拦截器
             return true;

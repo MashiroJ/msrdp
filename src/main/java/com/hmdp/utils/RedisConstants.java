@@ -18,4 +18,6 @@ public class RedisConstants {
 
     public static final String SHOP_TYPE ="shop:type" ;
 
+    public static final String LOCK_KEY = "lock:";
+
 }

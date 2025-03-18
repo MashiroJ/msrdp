@@ -10,7 +10,9 @@ import com.hmdp.mapper.VoucherOrderMapper;
 import com.hmdp.service.ISeckillVoucherService;
 import com.hmdp.utils.RedisIdWorker;
 import com.hmdp.utils.UserHolder;
+import org.springframework.aop.framework.AopContext;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
@@ -50,13 +52,22 @@ public class SeckillVoucherServiceImpl extends ServiceImpl<SeckillVoucherMapper,
         if (stock < 1) {
             return Result.fail("库存不足！");
         }
-        //5、一人一单：根据当前用户id和优惠券id判断是否已经下过单
-        long userId = UserHolder.getUser().getId();
+        Long userId = UserHolder.getUser().getId();
+        synchronized (userId.toString().intern()) {
+            // 获取代理对象(事务)
+            SeckillVoucherServiceImpl proxy = (SeckillVoucherServiceImpl) AopContext.currentProxy();
+            return proxy.createVoucherOrder(voucherId);
+        }
+    }
+
+    // 创建订单
+    @Transactional
+    public Result createVoucherOrder(Long voucherId) {
+        //5、一人一单
+        Long userId = UserHolder.getUser().getId();
         LambdaQueryWrapper<VoucherOrder> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper
-                .eq(VoucherOrder::getUserId, userId)
-                .eq(VoucherOrder::getVoucherId, voucherId);
-        int count = voucherOrderMapper.selectCount(queryWrapper);   // 或者使用合适的方法来获取计数
+        queryWrapper.eq(VoucherOrder::getUserId, userId).eq(VoucherOrder::getVoucherId, voucherId);
+        int count = voucherOrderMapper.selectCount(queryWrapper);
         if (count > 0) {
             return Result.fail("用户已经购买过一次！");
         }
@@ -73,10 +84,7 @@ public class SeckillVoucherServiceImpl extends ServiceImpl<SeckillVoucherMapper,
 //                .eq("stock", voucher.getStock()) //where id = ? and stock = ?
 //                .update();
         //优化乐观锁，当执行update语句时，只需判断当前库存大于0即可。
-        boolean isSuccess = update()
-                .setSql("stock = stock - 1")
-                .eq("voucher_id", voucherId)
-                .gt("stock", 0) //where id = ? and stock = ?
+        boolean isSuccess = update().setSql("stock = stock - 1").eq("voucher_id", voucherId).gt("stock", 0) //where id = ? and stock = ?
                 .update();
         if (!isSuccess) {
             return Result.fail("库存不足！");

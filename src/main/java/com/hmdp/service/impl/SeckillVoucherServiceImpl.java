@@ -1,5 +1,6 @@
 package com.hmdp.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.dto.Result;
 import com.hmdp.entity.SeckillVoucher;
@@ -51,12 +52,12 @@ public class SeckillVoucherServiceImpl extends ServiceImpl<SeckillVoucherMapper,
         }
         //5、一人一单：根据当前用户id和优惠券id判断是否已经下过单
         long userId = UserHolder.getUser().getId();
-//        LambdaQueryWrapper<VoucherOrder> queryWrapper = new LambdaQueryWrapper<>();
-//        queryWrapper.eq(VoucherOrder::getUserId, userId).eq(VoucherOrder::getVoucherId, voucherId);
-//        int count = voucherOrderMapper.selectCount(queryWrapper);  // 或者使用合适的方法来获取计数
-//        if (count > 0) {
-//            return Result.fail("用户已经购买过一次！");
-//        }
+        LambdaQueryWrapper<VoucherOrder> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(VoucherOrder::getUserId, userId).eq(VoucherOrder::getVoucherId, voucherId);
+        int count = voucherOrderMapper.selectCount(queryWrapper);   // 或者使用合适的方法来获取计数
+        if (count > 0) {
+            return Result.fail("用户已经购买过一次！");
+        }
         //6、扣减库存
         /*
         使用乐观锁解决超卖问题（CAS法：用数据本身是否发生变化判断线程是否安全）

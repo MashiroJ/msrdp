@@ -97,8 +97,7 @@ public class CacheClient {
         //2、判断是否存在记录
         if (StrUtil.isNotBlank(json)) {
             //存在，返回数据
-            R r = JSONUtil.toBean(json, type);
-            return r;
+            return JSONUtil.toBean(json, type);
         }
 
         //3、判断记录是否为空值
@@ -108,13 +107,12 @@ public class CacheClient {
 
         //4、查询数据库
         R r = dbFallback.apply(id);
-        //5、数据库是否存在记录
+        //5、数据库是否存在记录，如果不存在，将空字符串写入redis，避免缓存穿透
         if (r == null) {
-            //6、不存在，将空值写入redis
             stringRedisTemplate.opsForValue().set(key, "", CACHE_NULL_TTL, CACHE_NULL_TIME_UNIT);
             return null;
         }
-        //7、存在，保存数据到redis，返回数据
+        //7、如果存在，将保存数据到redis，并返回数据
         this.set(key, r, time, timeUnit);
         return r;
     }
@@ -146,12 +144,12 @@ public class CacheClient {
         if (StrUtil.isBlank(json)) {
             return null;
         }
-        //3、缓存命中
+        //3、缓存命中，反序列化为对象，然后提取数据与逻辑过期时间
         RedisData cacheData = JSONUtil.toBean(json, RedisData.class);
         LocalDateTime expireTime = cacheData.getExpireTime();
         R r = JSONUtil.toBean((JSONObject) cacheData.getData(), type);
 
-        //3.1、判断缓存是否过期
+        //3.1、判断缓存中的逻辑时间是否过期
         if (expireTime.isAfter(LocalDateTime.now())) {
             //3.2、缓存未过期，直接返回数据
             return r;
@@ -217,8 +215,7 @@ public class CacheClient {
         //2、判断是否存在记录
         if (StrUtil.isNotBlank(json)) {
             //存在，返回数据
-            R r = JSONUtil.toBean(json, type);
-            return r;
+            return JSONUtil.toBean(json, type);
         }
 
         //3、判断记录是否为空值
@@ -228,10 +225,11 @@ public class CacheClient {
 
         //4、redis 查询结果为null缓存失效，尝试重建缓存
         String lockKey = LOCK_KEY + id;
-        R dbR = null;
+        R dbR = null; //  缓存重建线程需要使用的数据
         try {
             //自旋等待，尝试获取互斥锁
             while (!tryLock(lockKey)) {
+                // 获取锁失败，休眠一段时间后重试
                 Thread.sleep(SPIN_WAIT_MILLISECOND);
             }
 

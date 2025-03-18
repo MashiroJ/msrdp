@@ -49,40 +49,47 @@ public class SeckillVoucherServiceImpl extends ServiceImpl<SeckillVoucherMapper,
         if (stock < 1) {
             return Result.fail("库存不足！");
         }
-        //5、扣减库存
+        //5、一人一单：根据当前用户id和优惠券id判断是否已经下过单
+        long userId = UserHolder.getUser().getId();
+//        LambdaQueryWrapper<VoucherOrder> queryWrapper = new LambdaQueryWrapper<>();
+//        queryWrapper.eq(VoucherOrder::getUserId, userId).eq(VoucherOrder::getVoucherId, voucherId);
+//        int count = voucherOrderMapper.selectCount(queryWrapper);  // 或者使用合适的方法来获取计数
+//        if (count > 0) {
+//            return Result.fail("用户已经购买过一次！");
+//        }
+        //6、扣减库存
         /*
         使用乐观锁解决超卖问题（CAS法：用数据本身是否发生变化判断线程是否安全）
         修改扣减库存操作，在执行update语句时添加判断，
         判断当前库存与之前查询出来的库存是否相等，
-        若相等，则说明没有人在中间修改过库存，那么此时就是安全的。  */
+        若相等，则说明没有人在中间修改过库存，那么此时就是安全的。
         boolean isSuccess = update()
                 .setSql("stock = stock - 1")
                 .eq("voucher_id", voucherId)
                 .eq("stock", voucher.getStock()) //where id = ? and stock = ?
-                .update();
+                .update(); */
         //优化乐观锁，当执行update语句时，只需判断当前库存大于0即可。
-//        boolean isSuccess = update()
-//                .setSql("stock = stock - 1")
-//                .eq("voucher_id", voucherId)
-//                .eq("stock", 0) //where id = ? and stock = ?
-//                .update();
+        boolean isSuccess = update()
+                .setSql("stock = stock - 1")
+                .eq("voucher_id", voucherId)
+                .gt("stock", 0) //where id = ? and stock = ?
+                .update();
         if (!isSuccess) {
             return Result.fail("库存不足！");
         }
 
-        //6、创建订单
+        //7、创建订单
         VoucherOrder voucherOrder = new VoucherOrder();
-        //6.1、设置订单id，使用Reids的id生成器
+        //7.1、设置订单id，使用Reids的id生成器
         long orderId = redisIdWorker.nextId("voucherOrder");
         voucherOrder.setId(orderId);
-        //6.2、设置优惠券id
+        //7.2、设置优惠券id
         voucherOrder.setVoucherId(voucherId);
-        //6.3、设置用户id
-        long userId = UserHolder.getUser().getId();
+        //7.3、设置用户id
         voucherOrder.setUserId(userId);
         voucherOrderMapper.insert(voucherOrder);
 
-        //7、返回订单id
+        //8、返回订单id
         return Result.ok(orderId);
     }
 }

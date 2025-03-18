@@ -50,9 +50,22 @@ public class SeckillVoucherServiceImpl extends ServiceImpl<SeckillVoucherMapper,
             return Result.fail("库存不足！");
         }
         //5、扣减库存
+        /*
+        使用乐观锁解决超卖问题（CAS法：用数据本身是否发生变化判断线程是否安全）
+        修改扣减库存操作，在执行update语句时添加判断，
+        判断当前库存与之前查询出来的库存是否相等，
+        若相等，则说明没有人在中间修改过库存，那么此时就是安全的。  */
         boolean isSuccess = update()
                 .setSql("stock = stock - 1")
-                .eq("voucher_id", voucherId).update();
+                .eq("voucher_id", voucherId)
+                .eq("stock", voucher.getStock()) //where id = ? and stock = ?
+                .update();
+        //优化乐观锁，当执行update语句时，只需判断当前库存大于0即可。
+//        boolean isSuccess = update()
+//                .setSql("stock = stock - 1")
+//                .eq("voucher_id", voucherId)
+//                .eq("stock", 0) //where id = ? and stock = ?
+//                .update();
         if (!isSuccess) {
             return Result.fail("库存不足！");
         }

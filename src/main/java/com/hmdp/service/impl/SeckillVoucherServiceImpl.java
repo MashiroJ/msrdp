@@ -9,8 +9,10 @@ import com.hmdp.mapper.SeckillVoucherMapper;
 import com.hmdp.mapper.VoucherOrderMapper;
 import com.hmdp.service.ISeckillVoucherService;
 import com.hmdp.utils.RedisIdWorker;
+import com.hmdp.utils.SimpleRedisLock;
 import com.hmdp.utils.UserHolder;
 import org.springframework.aop.framework.AopContext;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +34,8 @@ public class SeckillVoucherServiceImpl extends ServiceImpl<SeckillVoucherMapper,
     private RedisIdWorker redisIdWorker;
     @Resource
     private VoucherOrderMapper voucherOrderMapper;
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
 
     @Override
     public Result seckillVoucher(Long voucherId) {
@@ -53,11 +57,27 @@ public class SeckillVoucherServiceImpl extends ServiceImpl<SeckillVoucherMapper,
             return Result.fail("库存不足！");
         }
         Long userId = UserHolder.getUser().getId();
-        synchronized (userId.toString().intern()) {
-            // 获取代理对象(事务)
+        //创建锁对象
+        SimpleRedisLock lock = new SimpleRedisLock("voucher-order" + userId, stringRedisTemplate);
+        //获取锁
+        boolean isSuccess = lock.tryLock(500); //设置过期时间为500ms
+        if (!isSuccess) {
+            //获取锁失败，返回错误信息
+            return Result.fail("不允许重复下单！");
+        }
+        //获取锁成功，执行业务，创建订单
+        try {
             SeckillVoucherServiceImpl proxy = (SeckillVoucherServiceImpl) AopContext.currentProxy();
             return proxy.createVoucherOrder(voucherId);
+        } finally {
+            //释放锁
+            lock.unlock();
         }
+//        synchronized (userId.toString().intern()) {
+//            // 获取代理对象(事务)
+//            SeckillVoucherServiceImpl proxy = (SeckillVoucherServiceImpl) AopContext.currentProxy();
+//            return proxy.createVoucherOrder(voucherId);
+//        }
     }
 
     // 创建订单

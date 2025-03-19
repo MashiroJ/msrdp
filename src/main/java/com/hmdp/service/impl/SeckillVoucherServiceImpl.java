@@ -9,8 +9,9 @@ import com.hmdp.mapper.SeckillVoucherMapper;
 import com.hmdp.mapper.VoucherOrderMapper;
 import com.hmdp.service.ISeckillVoucherService;
 import com.hmdp.utils.RedisIdWorker;
-import com.hmdp.utils.SimpleRedisLock;
 import com.hmdp.utils.UserHolder;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,8 @@ public class SeckillVoucherServiceImpl extends ServiceImpl<SeckillVoucherMapper,
     private VoucherOrderMapper voucherOrderMapper;
     @Resource
     private StringRedisTemplate stringRedisTemplate;
+    @Resource
+    private RedissonClient redissonClient;
 
     @Override
     public Result seckillVoucher(Long voucherId) {
@@ -57,10 +60,15 @@ public class SeckillVoucherServiceImpl extends ServiceImpl<SeckillVoucherMapper,
             return Result.fail("库存不足！");
         }
         Long userId = UserHolder.getUser().getId();
-        //创建锁对象
-        SimpleRedisLock lock = new SimpleRedisLock("voucher-order" + userId, stringRedisTemplate);
-        //获取锁
-        boolean isSuccess = lock.tryLock(500); //设置过期时间为500ms
+//        //使用自制redis简易锁创建锁对象
+//        SimpleRedisLock lock = new SimpleRedisLock("voucher-order" + userId, stringRedisTemplate);
+//        //使用自制redis简易锁获取锁
+//        boolean isSuccess = lock.tryLock(500); //设置过期时间为500ms
+
+        //使用redisson分布式锁创建锁对象,并使用默认的过期时间
+        RLock lock = redissonClient.getLock("voucher-order" + userId);
+        boolean isSuccess = lock.tryLock();
+
         if (!isSuccess) {
             //获取锁失败，返回错误信息
             return Result.fail("不允许重复下单！");

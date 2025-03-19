@@ -19,11 +19,14 @@ public class SimpleRedisLock implements ILock {
     }
 
     private static final String KEY_PREFIX = "lock:";
-    private static final String ID_PREFIX = UUID.randomUUID().toString(true) + "-";
-    private static final DefaultRedisScript<Long> UNLOCK_SCRIPT;
+    private static final String ID_PREFIX = UUID.randomUUID().toString(true) + "-"; // 使用UUID避免多个线程拿到相同的标示
+    private static final DefaultRedisScript<Long> UNLOCK_SCRIPT;    //实现释放锁的lua脚本
+    // 释放锁的lua脚本
     static {
         UNLOCK_SCRIPT = new DefaultRedisScript<>();
+        // 设置lua脚本
         UNLOCK_SCRIPT.setLocation(new ClassPathResource("unlock.lua"));
+        // 设置返回类型
         UNLOCK_SCRIPT.setResultType(Long.class);
     }
 
@@ -39,7 +42,9 @@ public class SimpleRedisLock implements ILock {
 
     @Override
     public void unlock() {
-        // 调用lua脚本
+        /*
+        * lua脚本,确保释放锁是原子操作
+         */
         stringRedisTemplate.execute(
                 UNLOCK_SCRIPT,
                 Collections.singletonList(KEY_PREFIX + name),

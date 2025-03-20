@@ -4,6 +4,7 @@ import cn.hutool.core.util.BooleanUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.dto.Result;
+import com.hmdp.dto.UserDTO;
 import com.hmdp.entity.Blog;
 import com.hmdp.entity.User;
 import com.hmdp.mapper.BlogMapper;
@@ -101,7 +102,12 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 
     private void isBlogLiked(Blog blog) {
         // 1.获取登录用户
-        Long userId = UserHolder.getUser().getId();
+        UserDTO user = UserHolder.getUser();
+        if (user == null) {
+            // 用户未登录，无需查询
+            return;
+        }
+        Long userId = user.getId();
         //判断当前用户时候点赞
         String key = RedisConstants.BLOG_LIKED_KEY + blog.getId();
         Boolean isMember = stringRedisTemplate.opsForSet().isMember(key, userId.toString());

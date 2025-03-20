@@ -20,4 +20,6 @@ public class RedisConstants {
 
     public static final String LOCK_KEY = "lock:";
 
+    public static final String BLOG_LIKED_KEY = "blog:liked:";
+
 }

@@ -9,6 +9,7 @@ import com.hmdp.entity.User;
 import com.hmdp.mapper.BlogMapper;
 import com.hmdp.service.IBlogService;
 import com.hmdp.service.IUserService;
+import com.hmdp.utils.RedisConstants;
 import com.hmdp.utils.SystemConstants;
 import com.hmdp.utils.UserHolder;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -46,10 +47,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         List<Blog> records = page.getRecords();
         // 查询用户
         records.forEach(blog -> {
-            Long userId = blog.getUserId();
-            User user = userService.getById(userId);
-            blog.setName(user.getNickName());
-            blog.setIcon(user.getIcon());
+            queryBlogUser(blog);
+            isBlogLiked(blog);
         });
         return Result.ok(records);
     }
@@ -59,14 +58,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         //1、查询博客
         Blog blog = getById(id);
         //2、查询博客相关用户
-        return queryUserByBlog(blog);
-    }
-
-    private Result queryUserByBlog(Blog blog) {
-        Long userId = blog.getUserId();
-        User user = userService.getById(userId);
-        blog.setName(user.getNickName());
-        blog.setIcon(user.getIcon());
+        queryBlogUser(blog);
+        //3、查询点赞状态
+        isBlogLiked(blog);
         return Result.ok(blog);
     }
 
@@ -96,5 +90,22 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             }
         }
         return Result.ok();
+    }
+
+    private void queryBlogUser(Blog blog) {
+        Long userId = blog.getUserId();
+        User user = userService.getById(userId);
+        blog.setName(user.getNickName());
+        blog.setIcon(user.getIcon());
+    }
+
+    private void isBlogLiked(Blog blog) {
+        // 1.获取登录用户
+        Long userId = UserHolder.getUser().getId();
+        //判断当前用户时候点赞
+        String key = RedisConstants.BLOG_LIKED_KEY + blog.getId();
+        Boolean isMember = stringRedisTemplate.opsForSet().isMember(key, userId.toString());
+        // 判断是否点赞,isMember为true表示点赞，false表示未点赞
+        blog.setIsLike(BooleanUtil.isTrue(isMember));
     }
 }

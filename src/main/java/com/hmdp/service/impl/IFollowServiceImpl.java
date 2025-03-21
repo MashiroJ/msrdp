@@ -24,8 +24,9 @@ public class IFollowServiceImpl extends ServiceImpl<FollowMapper, Follow> implem
             save(follow);
         } else {
             //取关，删除数据 delete from tb_follow where user_id = ? and follow_user_id = ?
-            LambdaQueryWrapper<Follow> queryWrapper = new LambdaQueryWrapper<Follow>().eq(Follow::getUserId, id).eq(Follow::getFollowUserId, followUserId);
-            remove(queryWrapper);
+            remove(new LambdaQueryWrapper<Follow>()
+                    .eq(Follow::getUserId, id)
+                    .eq(Follow::getFollowUserId, followUserId));
         }
         return Result.ok();
     }
@@ -35,7 +36,9 @@ public class IFollowServiceImpl extends ServiceImpl<FollowMapper, Follow> implem
         //1、获得当前用户id
         Long id = UserHolder.getUser().getId();
         //2、查询数据库 select count(*) from tb_follow where user_id = ? and follow_user_id = ?
-        Integer count = query().eq("user_id", id).eq("follow_user_id", followUserId).count();
+        int count = count(new LambdaQueryWrapper<Follow>()
+                .eq(Follow::getUserId, id)
+                .eq(Follow::getFollowUserId, followUserId));
         return Result.ok(count > 0);
     }
 }

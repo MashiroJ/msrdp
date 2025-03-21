@@ -5,7 +5,9 @@ import com.hmdp.dto.Result;
 import com.hmdp.entity.Follow;
 
 public interface IFollowService extends IService<Follow> {
-    Result follow(long followUserId, Boolean isFollow);
+    Result follow(Long followUserId, Boolean isFollow);
 
-    Result isFollow(long followUserId);
+    Result isFollow(Long followUserId);
+
+    Result followCommons(Long id);
 }

@@ -12,7 +12,8 @@ import com.hmdp.entity.User;
 import com.hmdp.mapper.UserMapper;
 import com.hmdp.service.IUserService;
 import com.hmdp.utils.RegexUtils;
-import com.hmdp.utils.SystemConstants;
+import com.wf.captcha.SpecCaptcha;
+import com.wf.captcha.base.Captcha;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -51,7 +52,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
 
         //3. 符合，生成验证码
-        String code = RandomUtil.randomNumbers(6);
+        SpecCaptcha captcha = new SpecCaptcha(130, 48);
+        // 设置验证码长度为6位
+        captcha.setLen(6);
+        captcha.setCharType(Captcha.TYPE_ONLY_NUMBER);
+        // 获取验证码的文本内容
+        String code = captcha.text();
         //4. 保存验证码到session
         //session.setAttribute(User_LOGIN_SESSION_ID,code);
         String key = LOGIN_CODE_KEY + phone;
